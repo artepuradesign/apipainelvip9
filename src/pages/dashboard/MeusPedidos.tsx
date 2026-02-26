@@ -1,34 +1,31 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { pdfRgService, PdfRgPedido } from '@/services/pdfRgService';
-import { Eye, Download, Loader2, Package, DollarSign, Truck, CheckCircle, ClipboardList, Upload } from 'lucide-react';
+import { Eye, Download, Loader2, Package, Hammer, CheckCircle, ClipboardList, Upload, FileDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import SimpleTitleBar from '@/components/dashboard/SimpleTitleBar';
 import { useNavigate } from 'react-router-dom';
 
 const statusLabels: Record<number, string> = {
   1: 'Pedido Realizado',
-  2: 'Pagamento Confirmado',
-  3: 'Pedido Enviado',
-  4: 'Pedido Entregue',
+  2: 'Em Confecção',
+  3: 'Entregue',
 };
 
 const statusIcons: Record<number, React.ReactNode> = {
   1: <Package className="h-5 w-5" />,
-  2: <DollarSign className="h-5 w-5" />,
-  3: <Truck className="h-5 w-5" />,
-  4: <CheckCircle className="h-5 w-5" />,
+  2: <Hammer className="h-5 w-5" />,
+  3: <CheckCircle className="h-5 w-5" />,
 };
 
 const statusBadgeColors: Record<number, string> = {
   1: 'bg-blue-500 text-white',
   2: 'bg-amber-500 text-white',
-  3: 'bg-purple-500 text-white',
-  4: 'bg-emerald-500 text-white',
+  3: 'bg-emerald-500 text-white',
 };
 
 const formatDateBR = (dateStr: string | null) => {
@@ -41,27 +38,31 @@ const formatDateBR = (dateStr: string | null) => {
 const formatFullDate = (dateString: string) =>
   new Date(dateString).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-// Progress tracker like the reference image
 const StatusTracker = ({ currentStatus }: { currentStatus: number }) => {
+  const steps = [1, 2, 3];
   return (
     <div className="w-full py-6 px-2">
       <div className="flex items-center justify-between relative">
-        {/* Background line */}
-        <div className="absolute top-5 left-[10%] right-[10%] h-1 bg-muted rounded-full" />
-        {/* Active line */}
+        <div className="absolute top-5 left-[16%] right-[16%] h-1 bg-muted rounded-full" />
         <div
-          className="absolute top-5 left-[10%] h-1 bg-primary rounded-full transition-all duration-700 ease-out"
-          style={{ width: `${Math.max(0, ((currentStatus - 1) / 3) * 80)}%` }}
+          className="absolute top-5 left-[16%] h-1 rounded-full transition-all duration-700 ease-out"
+          style={{
+            width: `${Math.max(0, ((Math.min(currentStatus, 3) - 1) / 2) * 68)}%`,
+            background: currentStatus >= 3 ? 'hsl(var(--chart-2))' : 'hsl(var(--primary))',
+          }}
         />
 
-        {[1, 2, 3, 4].map((step) => {
+        {steps.map((step) => {
           const isActive = step <= currentStatus;
           const isCurrent = step === currentStatus;
+          const isEntregue = step === 3 && isActive;
           return (
             <div key={step} className="flex flex-col items-center z-10 flex-1">
               <div
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${
-                  isActive
+                  isEntregue
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+                    : isActive
                     ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
                     : 'bg-muted text-muted-foreground'
                 } ${isCurrent ? 'ring-4 ring-primary/20 scale-110' : ''}`}
@@ -69,7 +70,7 @@ const StatusTracker = ({ currentStatus }: { currentStatus: number }) => {
                 {isActive ? <CheckCircle className="h-5 w-5" /> : statusIcons[step]}
               </div>
               <span className={`text-[10px] sm:text-xs mt-2 text-center leading-tight max-w-[80px] ${
-                isActive ? 'text-primary font-semibold' : 'text-muted-foreground'
+                isEntregue ? 'text-emerald-600 font-semibold' : isActive ? 'text-primary font-semibold' : 'text-muted-foreground'
               }`}>
                 {statusLabels[step]}
               </span>
@@ -132,7 +133,7 @@ const MeusPedidos = () => {
   };
 
   return (
-    <div className="space-y-4 md:space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-4 md:space-y-6 max-w-5xl mx-auto">
       <SimpleTitleBar
         title="Meus Pedidos"
         subtitle="Acompanhe o status dos seus pedidos de PDF RG"
@@ -160,8 +161,8 @@ const MeusPedidos = () => {
                 <div className="flex items-center justify-between p-4 border-b bg-muted/30">
                   <div className="flex items-center gap-3">
                     <span className="font-mono font-bold text-sm">Pedido #{p.id}</span>
-                    <Badge className={statusBadgeColors[p.status]}>
-                      {statusLabels[p.status]}
+                    <Badge className={statusBadgeColors[p.status] || statusBadgeColors[1]}>
+                      {statusLabels[p.status] || 'Desconhecido'}
                     </Badge>
                   </div>
                   <span className="text-xs text-muted-foreground">
@@ -172,20 +173,31 @@ const MeusPedidos = () => {
                 {/* Progress tracker */}
                 <StatusTracker currentStatus={p.status} />
 
-                {/* Info & Actions */}
-                <div className="px-4 pb-4 flex items-center justify-between">
-                  <div className="text-sm text-muted-foreground space-y-0.5">
-                    <p>CPF: <span className="font-mono">{p.cpf}</span></p>
-                    {p.nome && <p>Nome: {p.nome}</p>}
-                    <p>Valor: R$ {Number(p.preco_pago || 0).toFixed(2)}</p>
+                {/* Info & Actions - responsive */}
+                <div className="px-4 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  {/* Info grid - more details on desktop */}
+                  <div className="text-sm text-muted-foreground grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-1">
+                    <p>CPF: <span className="font-mono text-foreground">{p.cpf}</span></p>
+                    {p.nome && <p>Nome: <span className="text-foreground">{p.nome}</span></p>}
+                    <p>Valor: <span className="text-foreground font-medium">R$ {Number(p.preco_pago || 0).toFixed(2)}</span></p>
+                    {p.dt_nascimento && <p className="hidden md:block">Nascimento: <span className="text-foreground">{formatDateBR(p.dt_nascimento)}</span></p>}
+                    {p.naturalidade && <p className="hidden md:block">Naturalidade: <span className="text-foreground">{p.naturalidade}</span></p>}
+                    {p.diretor && <p className="hidden md:block">Diretor: <span className="text-foreground">{p.diretor}</span></p>}
                   </div>
-                  <div className="flex gap-2">
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 shrink-0">
                     <Button size="sm" variant="outline" onClick={() => handleView(p)}>
                       <Eye className="h-4 w-4 mr-1" /> Detalhes
                     </Button>
-                    {p.status === 4 && p.pdf_entrega_nome && (
-                      <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleDownload(p)}>
-                        <Download className="h-4 w-4 mr-1" /> Baixar PDF
+                    {p.status === 3 && p.pdf_entrega_nome && (
+                      <Button
+                        size="icon"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 w-8"
+                        onClick={() => handleDownload(p)}
+                        title="Baixar PDF"
+                      >
+                        <FileDown className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
@@ -205,7 +217,6 @@ const MeusPedidos = () => {
           </DialogHeader>
           {selectedPedido && (
             <div className="space-y-4 text-sm">
-              {/* Progress */}
               <StatusTracker currentStatus={selectedPedido.status} />
 
               <div className="grid grid-cols-2 gap-2">
@@ -232,7 +243,7 @@ const MeusPedidos = () => {
                 </div>
               )}
 
-              {selectedPedido.status === 4 && selectedPedido.pdf_entrega_nome && (
+              {selectedPedido.status === 3 && selectedPedido.pdf_entrega_nome && (
                 <div className="border-t pt-3">
                   <p className="text-muted-foreground mb-2">📄 PDF Entregue:</p>
                   <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleDownload(selectedPedido)}>

@@ -208,7 +208,7 @@ const AdminPedidos = () => {
                 <div><span className="text-muted-foreground">Naturalidade:</span> {selectedPedido.naturalidade || '—'}</div>
                 <div><span className="text-muted-foreground">Mãe:</span> {selectedPedido.filiacao_mae || '—'}</div>
                 <div><span className="text-muted-foreground">Pai:</span> {selectedPedido.filiacao_pai || '—'}</div>
-                <div><span className="text-muted-foreground">Preço:</span> R$ {selectedPedido.preco_pago?.toFixed(2)}</div>
+                <div><span className="text-muted-foreground">Preço:</span> R$ {Number(selectedPedido.preco_pago || 0).toFixed(2)}</div>
                 <div>
                   <span className="text-muted-foreground">Status:</span>{' '}
                   <Badge variant="outline" className={statusColors[selectedPedido.status]}>

@@ -14,8 +14,8 @@ const AdminServicesSummary = () => {
     const load = async () => {
       try {
         const [pendingRes, completedRes] = await Promise.all([
-          pdfRgService.listar({ status: 1, limit: 1 }),
-          pdfRgService.listar({ status: 3, limit: 1 }),
+          pdfRgService.listar({ status: 'realizado', limit: 1 }),
+          pdfRgService.listar({ status: 'entregue', limit: 1 }),
         ]);
         if (pendingRes.success && pendingRes.data) {
           setPending(pendingRes.data.pagination.total);

@@ -34,8 +34,8 @@ CREATE TABLE IF NOT EXISTS pdf_rg_pedidos (
   -- QR Code
   qr_plan VARCHAR(10) NULL DEFAULT '1m',
 
-  -- Status do pedido: 1=criado, 2=recebido, 3=em_confeccao, 4=entregue
-  status TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  -- Status do pedido (nome): realizado, pagamento_confirmado, em_confeccao, entregue
+  status VARCHAR(30) NOT NULL DEFAULT 'realizado',
 
   -- Preço pago
   preco_pago DECIMAL(10,2) NOT NULL DEFAULT 0.00,
@@ -44,6 +44,12 @@ CREATE TABLE IF NOT EXISTS pdf_rg_pedidos (
   -- PDF final enviado pelo admin
   pdf_entrega_base64 LONGTEXT NULL,
   pdf_entrega_nome VARCHAR(255) NULL,
+
+  -- Timestamps por status
+  realizado_at DATETIME NULL,
+  pagamento_confirmado_at DATETIME NULL,
+  em_confeccao_at DATETIME NULL,
+  entregue_at DATETIME NULL,
 
   created_at DATETIME NOT NULL,
   updated_at DATETIME NOT NULL,

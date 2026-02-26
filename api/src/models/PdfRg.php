@@ -4,6 +4,8 @@ require_once __DIR__ . '/BaseModel.php';
 class PdfRg extends BaseModel {
     protected $table = 'pdf_rg_pedidos';
 
+    private $validStatuses = ['realizado', 'pagamento_confirmado', 'em_confeccao', 'entregue'];
+
     public function __construct($db) {
         parent::__construct($db);
     }
@@ -13,6 +15,8 @@ class PdfRg extends BaseModel {
         if ($cpf === '') {
             throw new Exception('CPF é obrigatório');
         }
+
+        $now = date('Y-m-d H:i:s');
 
         $payload = [
             'module_id'          => (int)($data['module_id'] ?? 0),
@@ -33,16 +37,23 @@ class PdfRg extends BaseModel {
             'anexo3_base64'      => $data['anexo3_base64'] ?? null,
             'anexo3_nome'        => $data['anexo3_nome'] ?? null,
             'qr_plan'            => $data['qr_plan'] ?? '1m',
-            'status'             => 1,
+            'status'             => 'realizado',
             'preco_pago'         => (float)($data['preco_pago'] ?? 0),
             'desconto_aplicado'  => (float)($data['desconto_aplicado'] ?? 0),
-            'created_at'         => date('Y-m-d H:i:s'),
-            'updated_at'         => date('Y-m-d H:i:s'),
+            'realizado_at'       => $now,
+            'pagamento_confirmado_at' => $now, // Auto-confirm payment since system charges at creation
+            'em_confeccao_at'    => null,
+            'entregue_at'        => null,
+            'created_at'         => $now,
+            'updated_at'         => $now,
         ];
 
         foreach ($payload as $k => $v) {
             if ($v === '') $payload[$k] = null;
         }
+
+        // Auto-advance to pagamento_confirmado since payment is always done at creation
+        $payload['status'] = 'pagamento_confirmado';
 
         return parent::create($payload);
     }
@@ -55,9 +66,9 @@ class PdfRg extends BaseModel {
             $where[] = 'user_id = ?';
             $params[] = $userId;
         }
-        if ($status !== null) {
+        if ($status !== null && in_array($status, $this->validStatuses)) {
             $where[] = 'status = ?';
-            $params[] = (int)$status;
+            $params[] = $status;
         }
         if ($search) {
             $where[] = '(nome LIKE ? OR cpf LIKE ?)';
@@ -72,6 +83,7 @@ class PdfRg extends BaseModel {
                          preco_pago, desconto_aplicado,
                          anexo1_nome, anexo2_nome, anexo3_nome,
                          pdf_entrega_nome,
+                         realizado_at, pagamento_confirmado_at, em_confeccao_at, entregue_at,
                          created_at, updated_at
                   FROM {$this->table} {$whereSql}
                   ORDER BY id DESC LIMIT ? OFFSET ?";
@@ -92,9 +104,9 @@ class PdfRg extends BaseModel {
             $where[] = 'user_id = ?';
             $params[] = $userId;
         }
-        if ($status !== null) {
+        if ($status !== null && in_array($status, $this->validStatuses)) {
             $where[] = 'status = ?';
-            $params[] = (int)$status;
+            $params[] = $status;
         }
         if ($search) {
             $where[] = '(nome LIKE ? OR cpf LIKE ?)';
@@ -118,8 +130,18 @@ class PdfRg extends BaseModel {
     }
 
     public function atualizarStatus($id, $status, $extraData = []) {
+        if (!in_array($status, $this->validStatuses)) {
+            throw new Exception('Status inválido: ' . $status);
+        }
+
+        $now = date('Y-m-d H:i:s');
         $sets = ['status = ?', 'updated_at = ?'];
-        $params = [(int)$status, date('Y-m-d H:i:s')];
+        $params = [$status, $now];
+
+        // Set timestamp for the specific status
+        $timestampCol = $status . '_at';
+        $sets[] = "$timestampCol = ?";
+        $params[] = $now;
 
         if (isset($extraData['pdf_entrega_base64'])) {
             $sets[] = 'pdf_entrega_base64 = ?';
@@ -134,6 +156,13 @@ class PdfRg extends BaseModel {
         $query = "UPDATE {$this->table} SET " . implode(', ', $sets) . " WHERE id = ?";
         $stmt = $this->db->prepare($query);
         return $stmt->execute($params);
+    }
+
+    public function deletarPdf($id) {
+        $now = date('Y-m-d H:i:s');
+        $query = "UPDATE {$this->table} SET pdf_entrega_base64 = NULL, pdf_entrega_nome = NULL, updated_at = ? WHERE id = ?";
+        $stmt = $this->db->prepare($query);
+        return $stmt->execute([$now, (int)$id]);
     }
 
     public function deletarPedido($id) {

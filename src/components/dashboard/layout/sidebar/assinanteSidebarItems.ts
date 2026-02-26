@@ -22,6 +22,11 @@ export const createAssinanteSidebarItems = (handleLogout: () => void, panelMenus
       path: '/dashboard'
     },
     {
+      icon: ClipboardList,
+      label: 'Meus Pedidos',
+      path: '/dashboard/meus-pedidos'
+    },
+    {
       icon: User,
       label: 'Minha Conta',
       path: '#',

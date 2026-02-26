@@ -575,7 +575,7 @@ const PdfRg = () => {
               <span className="text-muted-foreground">CPF:</span>
               <span className="font-mono">{formData.cpf}</span>
               {formData.nome && <><span className="text-muted-foreground">Nome:</span><span>{formData.nome}</span></>}
-              {formData.dataNascimento && <><span className="text-muted-foreground">Nascimento:</span><span>{formData.dataNascimento}</span></>}
+              {formData.dataNascimento && <><span className="text-muted-foreground">Nascimento:</span><span>{formData.dataNascimento.split('-').reverse().join('/')}</span></>}
               {formData.mae && <><span className="text-muted-foreground">Mãe:</span><span>{formData.mae}</span></>}
               {formData.pai && <><span className="text-muted-foreground">Pai:</span><span>{formData.pai}</span></>}
               {formData.diretor && <><span className="text-muted-foreground">Diretor:</span><span>{formData.diretor}</span></>}
@@ -614,7 +614,7 @@ const PdfRg = () => {
               <div className="grid grid-cols-2 gap-2">
                 <span className="text-muted-foreground">CPF:</span><span className="font-mono">{pedidoDetalhe.cpf}</span>
                 {pedidoDetalhe.nome && <><span className="text-muted-foreground">Nome:</span><span>{pedidoDetalhe.nome}</span></>}
-                {pedidoDetalhe.dt_nascimento && <><span className="text-muted-foreground">Nascimento:</span><span>{pedidoDetalhe.dt_nascimento}</span></>}
+                {pedidoDetalhe.dt_nascimento && <><span className="text-muted-foreground">Nascimento:</span><span>{pedidoDetalhe.dt_nascimento.split('-').reverse().join('/')}</span></>}
                 {pedidoDetalhe.naturalidade && <><span className="text-muted-foreground">Naturalidade:</span><span>{pedidoDetalhe.naturalidade}</span></>}
                 {pedidoDetalhe.filiacao_mae && <><span className="text-muted-foreground">Mãe:</span><span>{pedidoDetalhe.filiacao_mae}</span></>}
                 {pedidoDetalhe.filiacao_pai && <><span className="text-muted-foreground">Pai:</span><span>{pedidoDetalhe.filiacao_pai}</span></>}

@@ -30,10 +30,9 @@ const DIRETORES = ['Maranhão', 'Piauí', 'Goiânia', 'Tocantins'] as const;
 type DiretorPdfRg = (typeof DIRETORES)[number];
 
 const STATUS_LABELS: Record<number, { label: string; color: string; icon: React.ReactNode }> = {
-  1: { label: 'Pedido Criado', color: 'bg-blue-500', icon: <Package className="h-3 w-3" /> },
-  2: { label: 'Pedido Recebido', color: 'bg-yellow-500', icon: <Clock className="h-3 w-3" /> },
-  3: { label: 'Em Confecção', color: 'bg-orange-500', icon: <Loader2 className="h-3 w-3" /> },
-  4: { label: 'Material Entregue', color: 'bg-green-500', icon: <Truck className="h-3 w-3" /> },
+  1: { label: 'Pedido Realizado', color: 'bg-blue-500', icon: <Package className="h-3 w-3" /> },
+  2: { label: 'Em Confecção', color: 'bg-amber-500', icon: <Loader2 className="h-3 w-3" /> },
+  3: { label: 'Entregue', color: 'bg-emerald-500', icon: <CheckCircle className="h-3 w-3" /> },
 };
 
 interface FormData {
@@ -546,7 +545,7 @@ const PdfRg = () => {
                             <Button size="sm" variant="outline" className="h-7 text-xs flex-1" onClick={() => handleViewPedido(p)}>
                               <Eye className="h-3 w-3 mr-1" /> Ver
                             </Button>
-                            {p.status === 4 && p.pdf_entrega_nome && (
+                            {p.status === 3 && p.pdf_entrega_nome && (
                               <Button size="sm" variant="default" className="h-7 text-xs flex-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => handleDownloadPdf(p)}>
                                 <Download className="h-3 w-3 mr-1" /> PDF
                               </Button>
@@ -642,7 +641,7 @@ const PdfRg = () => {
                 </div>
               )}
 
-              {pedidoDetalhe.status === 4 && pedidoDetalhe.pdf_entrega_nome && (
+              {pedidoDetalhe.status === 3 && pedidoDetalhe.pdf_entrega_nome && (
                 <div className="border-t pt-3">
                   <p className="text-muted-foreground mb-2">📄 PDF Entregue:</p>
                   <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleDownloadPdf(pedidoDetalhe)}>

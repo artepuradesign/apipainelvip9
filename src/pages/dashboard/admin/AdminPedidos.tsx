@@ -5,33 +5,30 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { pdfRgService, PdfRgPedido } from '@/services/pdfRgService';
-import { Search, Eye, Trash2, RefreshCw, Download, Loader2, Upload, Package, DollarSign, Truck, CheckCircle } from 'lucide-react';
+import { Search, Eye, Trash2, RefreshCw, Download, Loader2, Upload, Package, Hammer, CheckCircle } from 'lucide-react';
 import PageHeaderCard from '@/components/dashboard/PageHeaderCard';
 import { getFullApiUrl } from '@/utils/apiHelper';
 import { cookieUtils } from '@/utils/cookieUtils';
 
 const statusLabels: Record<number, string> = {
   1: 'Pedido Realizado',
-  2: 'Pagamento Confirmado',
-  3: 'Pedido Enviado',
-  4: 'Pedido Entregue',
+  2: 'Em Confecção',
+  3: 'Entregue',
 };
 
 const statusIcons: Record<number, React.ReactNode> = {
   1: <Package className="h-5 w-5" />,
-  2: <DollarSign className="h-5 w-5" />,
-  3: <Truck className="h-5 w-5" />,
-  4: <CheckCircle className="h-5 w-5" />,
+  2: <Hammer className="h-5 w-5" />,
+  3: <CheckCircle className="h-5 w-5" />,
 };
 
 const statusColors: Record<number, string> = {
   1: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
   2: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
-  3: 'bg-purple-500/10 text-purple-600 border-purple-500/30',
-  4: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+  3: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
 };
 
 const formatDateBR = (dateStr: string | null) => {
@@ -41,34 +38,55 @@ const formatDateBR = (dateStr: string | null) => {
   return dateStr;
 };
 
-// Progress bar component
-const StatusProgressBar = ({ currentStatus }: { currentStatus: number }) => {
+// Circle-based progress bar for status display & update
+const StatusProgressCircles = ({
+  currentStatus,
+  onClickStep,
+  disabled,
+}: {
+  currentStatus: number;
+  onClickStep?: (step: number) => void;
+  disabled?: boolean;
+}) => {
+  const steps = [1, 2, 3];
   return (
     <div className="w-full py-4">
       <div className="flex items-center justify-between relative">
-        {/* Line connecting steps */}
-        <div className="absolute top-5 left-[12%] right-[12%] h-1 bg-muted rounded-full" />
+        <div className="absolute top-5 left-[16%] right-[16%] h-1 bg-muted rounded-full" />
         <div
-          className="absolute top-5 left-[12%] h-1 bg-primary rounded-full transition-all duration-500"
-          style={{ width: `${Math.max(0, ((currentStatus - 1) / 3) * 76)}%` }}
+          className="absolute top-5 left-[16%] h-1 rounded-full transition-all duration-500"
+          style={{
+            width: `${Math.max(0, ((Math.min(currentStatus, 3) - 1) / 2) * 68)}%`,
+            background: currentStatus >= 3 ? '#10b981' : 'hsl(var(--primary))',
+          }}
         />
 
-        {[1, 2, 3, 4].map((step) => {
+        {steps.map((step) => {
           const isActive = step <= currentStatus;
           const isCurrent = step === currentStatus;
+          const isEntregue = step === 3 && isActive;
+          const canClick = onClickStep && step !== currentStatus && !disabled;
+
           return (
             <div key={step} className="flex flex-col items-center z-10 flex-1">
-              <div
+              <button
+                type="button"
+                onClick={() => canClick && onClickStep?.(step)}
+                disabled={!canClick}
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  isActive
+                  isEntregue
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+                    : isActive
                     ? 'bg-primary text-primary-foreground shadow-lg'
                     : 'bg-muted text-muted-foreground'
-                } ${isCurrent ? 'ring-4 ring-primary/30 scale-110' : ''}`}
+                } ${isCurrent ? 'ring-4 ring-primary/30 scale-110' : ''} ${
+                  canClick ? 'cursor-pointer hover:scale-110' : 'cursor-default'
+                }`}
               >
-                {statusIcons[step]}
-              </div>
+                {isActive ? <CheckCircle className="h-5 w-5" /> : statusIcons[step]}
+              </button>
               <span className={`text-[10px] mt-2 text-center leading-tight max-w-[80px] ${
-                isActive ? 'text-primary font-semibold' : 'text-muted-foreground'
+                isEntregue ? 'text-emerald-600 font-semibold' : isActive ? 'text-primary font-semibold' : 'text-muted-foreground'
               }`}>
                 {statusLabels[step]}
               </span>
@@ -146,8 +164,8 @@ const AdminPedidos = () => {
           user_id: userId,
           type: 'pedido_status',
           title: `Pedido #${pedidoId} - ${statusLabels[newStatus]}`,
-          message: `Seu pedido #${pedidoId} teve o status atualizado para: ${statusLabels[newStatus]}.${newStatus === 4 ? ' O arquivo PDF está disponível para download.' : ''}`,
-          priority: newStatus === 4 ? 'high' : 'medium',
+          message: `Seu pedido #${pedidoId} teve o status atualizado para: ${statusLabels[newStatus]}.${newStatus === 3 ? ' O arquivo PDF está disponível para download.' : ''}`,
+          priority: newStatus === 3 ? 'high' : 'medium',
         }),
       });
     } catch (e) {
@@ -166,8 +184,8 @@ const AdminPedidos = () => {
   const handleUpdateStatus = async (newStatus: number) => {
     if (!selectedPedido) return;
 
-    // Status 4 requires PDF upload
-    if (newStatus === 4 && !pdfFile && !selectedPedido.pdf_entrega_base64) {
+    // Status 3 (Entregue) requires PDF upload
+    if (newStatus === 3 && !pdfFile && !selectedPedido.pdf_entrega_base64) {
       toast.error('É obrigatório enviar o arquivo PDF para marcar como Entregue.');
       return;
     }
@@ -188,10 +206,7 @@ const AdminPedidos = () => {
       const res = await pdfRgService.atualizarStatus(selectedPedido.id, newStatus, Object.keys(extraData).length > 0 ? extraData : undefined);
       if (res.success) {
         toast.success(`Status atualizado para: ${statusLabels[newStatus]}`);
-        
-        // Send notification to user
         await sendNotification(selectedPedido.user_id, selectedPedido.id, newStatus);
-        
         loadPedidos();
         setSelectedPedido(prev => prev ? { ...prev, status: newStatus, ...(extraData.pdf_entrega_nome ? { pdf_entrega_nome: extraData.pdf_entrega_nome } : {}) } : null);
         setPdfFile(null);
@@ -260,9 +275,8 @@ const AdminPedidos = () => {
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
             <SelectItem value="1">Pedido Realizado</SelectItem>
-            <SelectItem value="2">Pagamento Confirmado</SelectItem>
-            <SelectItem value="3">Pedido Enviado</SelectItem>
-            <SelectItem value="4">Pedido Entregue</SelectItem>
+            <SelectItem value="2">Em Confecção</SelectItem>
+            <SelectItem value="3">Entregue</SelectItem>
           </SelectContent>
         </Select>
         <Button variant="outline" size="icon" onClick={loadPedidos}>
@@ -296,8 +310,8 @@ const AdminPedidos = () => {
                       {p.nome && <span className="text-sm text-muted-foreground">— {p.nome}</span>}
                     </div>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className={statusColors[p.status]}>
-                        {statusLabels[p.status]}
+                      <Badge variant="outline" className={statusColors[p.status] || statusColors[1]}>
+                        {statusLabels[p.status] || 'Desconhecido'}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         {new Date(p.created_at).toLocaleDateString('pt-BR')}
@@ -331,8 +345,8 @@ const AdminPedidos = () => {
             </div>
           ) : selectedPedido && (
             <div className="space-y-5">
-              {/* Status Progress Bar */}
-              <StatusProgressBar currentStatus={selectedPedido.status} />
+              {/* Status Progress - display */}
+              <StatusProgressCircles currentStatus={selectedPedido.status} />
 
               {/* Info */}
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -345,8 +359,8 @@ const AdminPedidos = () => {
                 <div><span className="text-muted-foreground">Preço:</span> R$ {Number(selectedPedido.preco_pago || 0).toFixed(2)}</div>
                 <div>
                   <span className="text-muted-foreground">Status:</span>{' '}
-                  <Badge variant="outline" className={statusColors[selectedPedido.status]}>
-                    {statusLabels[selectedPedido.status]}
+                  <Badge variant="outline" className={statusColors[selectedPedido.status] || statusColors[1]}>
+                    {statusLabels[selectedPedido.status] || 'Desconhecido'}
                   </Badge>
                 </div>
               </div>
@@ -377,7 +391,7 @@ const AdminPedidos = () => {
                 <Label className="text-sm font-medium flex items-center gap-2">
                   <Upload className="h-4 w-4" />
                   Enviar PDF de Entrega
-                  {selectedPedido.status < 4 && <span className="text-xs text-destructive">(obrigatório para Entregue)</span>}
+                  {selectedPedido.status < 3 && <span className="text-xs text-destructive">(obrigatório para Entregue)</span>}
                 </Label>
                 <Input
                   ref={fileInputRef}
@@ -398,42 +412,15 @@ const AdminPedidos = () => {
                 )}
               </div>
 
-              {/* Status Slider */}
+              {/* Status Update - Circle model */}
               <div className="space-y-3">
                 <p className="text-sm font-medium">Atualizar Status:</p>
-                
-                {/* Interactive status steps */}
-                <div className="flex items-center gap-0">
-                  {[1, 2, 3, 4].map((step) => {
-                    const isActive = step <= selectedPedido.status;
-                    const canClick = step !== selectedPedido.status;
-                    const isEntregue = step === 4;
-                    const needsPdf = isEntregue && !pdfFile && !selectedPedido.pdf_entrega_base64;
-
-                    return (
-                      <React.Fragment key={step}>
-                        <button
-                          onClick={() => canClick && handleUpdateStatus(step)}
-                          disabled={updatingStatus || !canClick}
-                          className={`flex-1 py-3 px-2 text-xs font-medium rounded-md transition-all duration-200 border ${
-                            isActive
-                              ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                              : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted'
-                          } ${canClick ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-default'} ${
-                            needsPdf ? 'opacity-50' : ''
-                          }`}
-                          title={needsPdf ? 'Envie o PDF primeiro' : statusLabels[step]}
-                        >
-                          <div className="flex flex-col items-center gap-1">
-                            {statusIcons[step]}
-                            <span className="leading-tight">{statusLabels[step]}</span>
-                          </div>
-                        </button>
-                        {step < 4 && <div className={`w-2 h-0.5 ${step < selectedPedido.status ? 'bg-primary' : 'bg-muted'}`} />}
-                      </React.Fragment>
-                    );
-                  })}
-                </div>
+                <p className="text-xs text-muted-foreground">Clique em uma etapa para atualizar o status do pedido.</p>
+                <StatusProgressCircles
+                  currentStatus={selectedPedido.status}
+                  onClickStep={handleUpdateStatus}
+                  disabled={updatingStatus}
+                />
 
                 {updatingStatus && (
                   <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">

@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import UnifiedAdminStatsCards from '@/components/dashboard/UnifiedAdminStatsCards';
 import AdminRecentTransactions from '@/components/dashboard/AdminRecentTransactions';
 import OnlineUsersLeaderboard from '@/components/dashboard/OnlineUsersLeaderboard';
+import AdminServicesSummary from '@/components/dashboard/AdminServicesSummary';
 import PageHeaderCard from '@/components/dashboard/PageHeaderCard';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -122,6 +123,9 @@ const DashboardAdmin = () => {
 
   return (
     <div className="space-y-6 relative z-10">
+      {/* Resumo de Serviços Pendentes/Concluídos */}
+      <AdminServicesSummary />
+
       {/* Stats Cards Unificados - 3 linhas de 4 cards */}
       <UnifiedAdminStatsCards dashboardStats={adjustedStats} />
 

@@ -168,7 +168,7 @@ const MeusPedidos = () => {
     <div className="space-y-4 md:space-y-6 max-w-5xl mx-auto">
       <SimpleTitleBar
         title="Meus Pedidos"
-        subtitle="Acompanhe o status dos seus pedidos de PDF RG"
+        subtitle="Acompanhe o status dos seus pedidos"
         onBack={() => navigate('/dashboard')}
       />
 

@@ -1,8 +1,6 @@
 import { cookieUtils } from '@/utils/cookieUtils';
 import { apiRequest as centralApiRequest, fetchApiConfig } from '@/config/api';
 
-export type PdfRgStatus = 'realizado' | 'pagamento_confirmado' | 'em_confeccao' | 'entregue';
-
 export interface PdfRgPedido {
   id: number;
   module_id: number;
@@ -15,7 +13,7 @@ export interface PdfRgPedido {
   filiacao_pai: string | null;
   diretor: string | null;
   qr_plan: string | null;
-  status: PdfRgStatus;
+  status: number; // 1=criado, 2=recebido, 3=em_confeccao, 4=entregue
   preco_pago: number;
   desconto_aplicado: number;
   anexo1_nome: string | null;
@@ -29,11 +27,6 @@ export interface PdfRgPedido {
   anexo2_base64?: string | null;
   anexo3_base64?: string | null;
   pdf_entrega_base64?: string | null;
-  // timestamps per status
-  realizado_at: string | null;
-  pagamento_confirmado_at: string | null;
-  em_confeccao_at: string | null;
-  entregue_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -81,12 +74,12 @@ export const pdfRgService = {
     });
   },
 
-  async listar(params: { limit?: number; offset?: number; user_id?: number; status?: string; search?: string } = {}) {
+  async listar(params: { limit?: number; offset?: number; user_id?: number; status?: number; search?: string } = {}) {
     const qs = new URLSearchParams();
     if (params.limit !== undefined) qs.set('limit', String(params.limit));
     if (params.offset !== undefined) qs.set('offset', String(params.offset));
     if (params.user_id !== undefined) qs.set('user_id', String(params.user_id));
-    if (params.status !== undefined) qs.set('status', params.status);
+    if (params.status !== undefined) qs.set('status', String(params.status));
     if (params.search) qs.set('search', params.search);
 
     const endpoint = `/pdf-rg${qs.toString() ? `?${qs.toString()}` : ''}`;
@@ -97,17 +90,10 @@ export const pdfRgService = {
     return apiRequest<PdfRgPedido>(`/pdf-rg/${id}`);
   },
 
-  async atualizarStatus(id: number, status: PdfRgStatus, extraData?: { pdf_entrega_base64?: string; pdf_entrega_nome?: string }) {
-    return apiRequest<{ id: number; status: PdfRgStatus }>('/pdf-rg/status', {
+  async atualizarStatus(id: number, status: number, extraData?: { pdf_entrega_base64?: string; pdf_entrega_nome?: string }) {
+    return apiRequest<{ id: number; status: number }>('/pdf-rg/status', {
       method: 'POST',
       body: JSON.stringify({ id, status, ...extraData }),
-    });
-  },
-
-  async deletarPdf(id: number) {
-    return apiRequest<{ id: number }>('/pdf-rg/delete-pdf', {
-      method: 'POST',
-      body: JSON.stringify({ id }),
     });
   },
 

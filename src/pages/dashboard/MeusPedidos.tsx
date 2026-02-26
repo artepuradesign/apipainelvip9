@@ -4,33 +4,28 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { pdfRgService, PdfRgPedido, PdfRgStatus } from '@/services/pdfRgService';
-import { Eye, Download, Loader2, Package, DollarSign, Hammer, CheckCircle, ClipboardList, Upload, FileDown } from 'lucide-react';
+import { pdfRgService, PdfRgPedido } from '@/services/pdfRgService';
+import { Eye, Download, Loader2, Package, Hammer, CheckCircle, ClipboardList, Upload, FileDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import SimpleTitleBar from '@/components/dashboard/SimpleTitleBar';
 import { useNavigate } from 'react-router-dom';
 
-const STATUS_ORDER: PdfRgStatus[] = ['realizado', 'pagamento_confirmado', 'em_confeccao', 'entregue'];
-
-const statusLabels: Record<PdfRgStatus, string> = {
-  realizado: 'Pedido Realizado',
-  pagamento_confirmado: 'Pagamento Confirmado',
-  em_confeccao: 'Em Confecção',
-  entregue: 'Entregue',
+const statusLabels: Record<number, string> = {
+  1: 'Pedido Realizado',
+  2: 'Em Confecção',
+  3: 'Entregue',
 };
 
-const statusIcons: Record<PdfRgStatus, React.ReactNode> = {
-  realizado: <Package className="h-5 w-5" />,
-  pagamento_confirmado: <DollarSign className="h-5 w-5" />,
-  em_confeccao: <Hammer className="h-5 w-5" />,
-  entregue: <CheckCircle className="h-5 w-5" />,
+const statusIcons: Record<number, React.ReactNode> = {
+  1: <Package className="h-5 w-5" />,
+  2: <Hammer className="h-5 w-5" />,
+  3: <CheckCircle className="h-5 w-5" />,
 };
 
-const statusBadgeColors: Record<PdfRgStatus, string> = {
-  realizado: 'bg-emerald-500 text-white',
-  pagamento_confirmado: 'bg-emerald-500 text-white',
-  em_confeccao: 'bg-blue-500 text-white',
-  entregue: 'bg-emerald-500 text-white',
+const statusBadgeColors: Record<number, string> = {
+  1: 'bg-blue-500 text-white',
+  2: 'bg-amber-500 text-white',
+  3: 'bg-emerald-500 text-white',
 };
 
 const formatDateBR = (dateStr: string | null) => {
@@ -40,72 +35,45 @@ const formatDateBR = (dateStr: string | null) => {
   return dateStr;
 };
 
-const formatFullDate = (dateString: string | null) => {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
+const formatFullDate = (dateString: string) =>
+  new Date(dateString).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-const formatTime = (dateString: string | null) => {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-};
-
-const getStatusIndex = (status: PdfRgStatus) => STATUS_ORDER.indexOf(status);
-
-const getStepTimestamp = (pedido: PdfRgPedido, step: PdfRgStatus): string | null => {
-  const map: Record<PdfRgStatus, string | null> = {
-    realizado: pedido.realizado_at,
-    pagamento_confirmado: pedido.pagamento_confirmado_at,
-    em_confeccao: pedido.em_confeccao_at,
-    entregue: pedido.entregue_at,
-  };
-  return map[step];
-};
-
-const StatusTracker = ({ pedido }: { pedido: PdfRgPedido }) => {
-  const currentIdx = getStatusIndex(pedido.status);
-
+const StatusTracker = ({ currentStatus }: { currentStatus: number }) => {
+  const steps = [1, 2, 3];
   return (
     <div className="w-full py-6 px-2">
       <div className="flex items-center justify-between relative">
-        <div className="absolute top-5 left-[12%] right-[12%] h-1 bg-muted rounded-full" />
+        <div className="absolute top-5 left-[16%] right-[16%] h-1 bg-muted rounded-full" />
         <div
-          className="absolute top-5 left-[12%] h-1 rounded-full transition-all duration-700 ease-out bg-emerald-500"
-          style={{ width: `${Math.max(0, (currentIdx / 3) * 76)}%` }}
+          className="absolute top-5 left-[16%] h-1 rounded-full transition-all duration-700 ease-out"
+          style={{
+            width: `${Math.max(0, ((Math.min(currentStatus, 3) - 1) / 2) * 68)}%`,
+            background: currentStatus >= 3 ? 'hsl(var(--chart-2))' : 'hsl(var(--primary))',
+          }}
         />
 
-        {STATUS_ORDER.map((step, idx) => {
-          const isCompleted = idx < currentIdx;
-          const isCurrent = idx === currentIdx;
-          const isActive = idx <= currentIdx;
-          const isEmConfeccao = step === 'em_confeccao' && isCurrent;
-          const timestamp = getStepTimestamp(pedido, step);
-
+        {steps.map((step) => {
+          const isActive = step <= currentStatus;
+          const isCurrent = step === currentStatus;
+          const isEntregue = step === 3 && isActive;
           return (
             <div key={step} className="flex flex-col items-center z-10 flex-1">
               <div
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${
-                  isCompleted || (isCurrent && step === 'entregue')
+                  isEntregue
                     ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
-                    : isEmConfeccao
-                    ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 animate-pulse'
-                    : isCurrent
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+                    : isActive
+                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
                     : 'bg-muted text-muted-foreground'
-                } ${isCurrent ? 'ring-4 ring-emerald-500/20 scale-110' : ''}`}
+                } ${isCurrent ? 'ring-4 ring-primary/20 scale-110' : ''}`}
               >
-                {isCompleted ? <CheckCircle className="h-5 w-5" /> : statusIcons[step]}
+                {isActive ? <CheckCircle className="h-5 w-5" /> : statusIcons[step]}
               </div>
               <span className={`text-[10px] sm:text-xs mt-2 text-center leading-tight max-w-[80px] ${
-                isActive ? (isEmConfeccao ? 'text-blue-600 font-semibold' : 'text-emerald-600 font-semibold') : 'text-muted-foreground'
+                isEntregue ? 'text-emerald-600 font-semibold' : isActive ? 'text-primary font-semibold' : 'text-muted-foreground'
               }`}>
                 {statusLabels[step]}
               </span>
-              {timestamp && isActive && (
-                <span className="text-[9px] text-muted-foreground mt-0.5">
-                  {formatTime(timestamp)}
-                </span>
-              )}
             </div>
           );
         })}
@@ -193,8 +161,8 @@ const MeusPedidos = () => {
                 <div className="flex items-center justify-between p-4 border-b bg-muted/30">
                   <div className="flex items-center gap-3">
                     <span className="font-mono font-bold text-sm">Pedido #{p.id}</span>
-                    <Badge className={statusBadgeColors[p.status] || 'bg-muted'}>
-                      {statusLabels[p.status] || p.status}
+                    <Badge className={statusBadgeColors[p.status] || statusBadgeColors[1]}>
+                      {statusLabels[p.status] || 'Desconhecido'}
                     </Badge>
                   </div>
                   <span className="text-xs text-muted-foreground">
@@ -203,10 +171,11 @@ const MeusPedidos = () => {
                 </div>
 
                 {/* Progress tracker */}
-                <StatusTracker pedido={p} />
+                <StatusTracker currentStatus={p.status} />
 
                 {/* Info & Actions - responsive */}
                 <div className="px-4 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  {/* Info grid - more details on desktop */}
                   <div className="text-sm text-muted-foreground grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-1">
                     <p>CPF: <span className="font-mono text-foreground">{p.cpf}</span></p>
                     {p.nome && <p>Nome: <span className="text-foreground">{p.nome}</span></p>}
@@ -216,11 +185,12 @@ const MeusPedidos = () => {
                     {p.diretor && <p className="hidden md:block">Diretor: <span className="text-foreground">{p.diretor}</span></p>}
                   </div>
 
+                  {/* Actions */}
                   <div className="flex items-center gap-2 shrink-0">
                     <Button size="sm" variant="outline" onClick={() => handleView(p)}>
                       <Eye className="h-4 w-4 mr-1" /> Detalhes
                     </Button>
-                    {p.status === 'entregue' && p.pdf_entrega_nome && (
+                    {p.status === 3 && p.pdf_entrega_nome && (
                       <Button
                         size="icon"
                         className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 w-8"
@@ -247,7 +217,7 @@ const MeusPedidos = () => {
           </DialogHeader>
           {selectedPedido && (
             <div className="space-y-4 text-sm">
-              <StatusTracker pedido={selectedPedido} />
+              <StatusTracker currentStatus={selectedPedido.status} />
 
               <div className="grid grid-cols-2 gap-2">
                 <span className="text-muted-foreground">CPF:</span><span className="font-mono">{selectedPedido.cpf}</span>
@@ -273,7 +243,7 @@ const MeusPedidos = () => {
                 </div>
               )}
 
-              {selectedPedido.status === 'entregue' && selectedPedido.pdf_entrega_nome && (
+              {selectedPedido.status === 3 && selectedPedido.pdf_entrega_nome && (
                 <div className="border-t pt-3">
                   <p className="text-muted-foreground mb-2">📄 PDF Entregue:</p>
                   <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleDownload(selectedPedido)}>

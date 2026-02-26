@@ -42,7 +42,7 @@ class PdfRgController {
     public function listar() {
         try {
             $userId = isset($_GET['user_id']) ? (int)$_GET['user_id'] : null;
-            $status = isset($_GET['status']) ? $_GET['status'] : null;
+            $status = isset($_GET['status']) ? (int)$_GET['status'] : null;
             $limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : 20;
             $offset = isset($_GET['offset']) ? max(0, (int)$_GET['offset']) : 0;
             $search = $_GET['search'] ?? null;
@@ -90,34 +90,14 @@ class PdfRgController {
                 $extraData['pdf_entrega_nome'] = $input['pdf_entrega_nome'];
             }
 
-            $success = $this->model->atualizarStatus((int)$input['id'], $input['status'], $extraData);
+            $success = $this->model->atualizarStatus((int)$input['id'], (int)$input['status'], $extraData);
             if ($success) {
-                Response::success(['id' => (int)$input['id'], 'status' => $input['status']], 'Status atualizado');
+                Response::success(['id' => (int)$input['id'], 'status' => (int)$input['status']], 'Status atualizado');
             } else {
                 Response::error('Erro ao atualizar status', 500);
             }
         } catch (Exception $e) {
             Response::error('Erro ao atualizar status: ' . $e->getMessage(), 400);
-        }
-    }
-
-    public function deletarPdf() {
-        try {
-            $raw = file_get_contents('php://input');
-            $input = json_decode($raw, true);
-            if (!$input || !isset($input['id'])) {
-                Response::error('ID é obrigatório', 400);
-                return;
-            }
-
-            $success = $this->model->deletarPdf((int)$input['id']);
-            if ($success) {
-                Response::success(['id' => (int)$input['id']], 'PDF deletado');
-            } else {
-                Response::error('Erro ao deletar PDF', 500);
-            }
-        } catch (Exception $e) {
-            Response::error('Erro ao deletar PDF: ' . $e->getMessage(), 400);
         }
     }
 

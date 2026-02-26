@@ -7,33 +7,28 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { pdfRgService, PdfRgPedido, PdfRgStatus } from '@/services/pdfRgService';
-import { Search, Eye, Trash2, RefreshCw, Download, Loader2, Upload, Package, DollarSign, Hammer, CheckCircle, X } from 'lucide-react';
+import { pdfRgService, PdfRgPedido } from '@/services/pdfRgService';
+import { Search, Eye, Trash2, RefreshCw, Download, Loader2, Upload, Package, Hammer, CheckCircle } from 'lucide-react';
 import PageHeaderCard from '@/components/dashboard/PageHeaderCard';
 import { getFullApiUrl } from '@/utils/apiHelper';
 import { cookieUtils } from '@/utils/cookieUtils';
 
-const STATUS_ORDER: PdfRgStatus[] = ['realizado', 'pagamento_confirmado', 'em_confeccao', 'entregue'];
-
-const statusLabels: Record<PdfRgStatus, string> = {
-  realizado: 'Pedido Realizado',
-  pagamento_confirmado: 'Pagamento Confirmado',
-  em_confeccao: 'Em Confecção',
-  entregue: 'Entregue',
+const statusLabels: Record<number, string> = {
+  1: 'Pedido Realizado',
+  2: 'Em Confecção',
+  3: 'Entregue',
 };
 
-const statusIcons: Record<PdfRgStatus, React.ReactNode> = {
-  realizado: <Package className="h-5 w-5" />,
-  pagamento_confirmado: <DollarSign className="h-5 w-5" />,
-  em_confeccao: <Hammer className="h-5 w-5" />,
-  entregue: <CheckCircle className="h-5 w-5" />,
+const statusIcons: Record<number, React.ReactNode> = {
+  1: <Package className="h-5 w-5" />,
+  2: <Hammer className="h-5 w-5" />,
+  3: <CheckCircle className="h-5 w-5" />,
 };
 
-const statusColors: Record<PdfRgStatus, string> = {
-  realizado: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
-  pagamento_confirmado: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
-  em_confeccao: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
-  entregue: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
+const statusColors: Record<number, string> = {
+  1: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
+  2: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
+  3: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30',
 };
 
 const formatDateBR = (dateStr: string | null) => {
@@ -43,51 +38,34 @@ const formatDateBR = (dateStr: string | null) => {
   return dateStr;
 };
 
-const formatTime = (dateString: string | null) => {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-};
-
-const getStatusIndex = (status: PdfRgStatus) => STATUS_ORDER.indexOf(status);
-
-const getStepTimestamp = (pedido: PdfRgPedido, step: PdfRgStatus): string | null => {
-  const map: Record<PdfRgStatus, string | null> = {
-    realizado: pedido.realizado_at,
-    pagamento_confirmado: pedido.pagamento_confirmado_at,
-    em_confeccao: pedido.em_confeccao_at,
-    entregue: pedido.entregue_at,
-  };
-  return map[step];
-};
-
 // Circle-based progress bar for status display & update
 const StatusProgressCircles = ({
-  pedido,
+  currentStatus,
   onClickStep,
   disabled,
 }: {
-  pedido: PdfRgPedido;
-  onClickStep?: (step: PdfRgStatus) => void;
+  currentStatus: number;
+  onClickStep?: (step: number) => void;
   disabled?: boolean;
 }) => {
-  const currentIdx = getStatusIndex(pedido.status);
-
+  const steps = [1, 2, 3];
   return (
     <div className="w-full py-4">
       <div className="flex items-center justify-between relative">
-        <div className="absolute top-5 left-[12%] right-[12%] h-1 bg-muted rounded-full" />
+        <div className="absolute top-5 left-[16%] right-[16%] h-1 bg-muted rounded-full" />
         <div
-          className="absolute top-5 left-[12%] h-1 rounded-full transition-all duration-500 bg-emerald-500"
-          style={{ width: `${Math.max(0, (currentIdx / 3) * 76)}%` }}
+          className="absolute top-5 left-[16%] h-1 rounded-full transition-all duration-500"
+          style={{
+            width: `${Math.max(0, ((Math.min(currentStatus, 3) - 1) / 2) * 68)}%`,
+            background: currentStatus >= 3 ? '#10b981' : 'hsl(var(--primary))',
+          }}
         />
 
-        {STATUS_ORDER.map((step, idx) => {
-          const isCompleted = idx < currentIdx;
-          const isCurrent = idx === currentIdx;
-          const isActive = idx <= currentIdx;
-          const isEmConfeccao = step === 'em_confeccao' && isCurrent;
-          const canClick = onClickStep && step !== pedido.status && !disabled;
-          const timestamp = getStepTimestamp(pedido, step);
+        {steps.map((step) => {
+          const isActive = step <= currentStatus;
+          const isCurrent = step === currentStatus;
+          const isEntregue = step === 3 && isActive;
+          const canClick = onClickStep && step !== currentStatus && !disabled;
 
           return (
             <div key={step} className="flex flex-col items-center z-10 flex-1">
@@ -96,31 +74,22 @@ const StatusProgressCircles = ({
                 onClick={() => canClick && onClickStep?.(step)}
                 disabled={!canClick}
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  isCompleted || (isCurrent && step === 'entregue')
+                  isEntregue
                     ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
-                    : isEmConfeccao
-                    ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 animate-pulse'
-                    : isCurrent
-                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+                    : isActive
+                    ? 'bg-primary text-primary-foreground shadow-lg'
                     : 'bg-muted text-muted-foreground'
-                } ${isCurrent ? 'ring-4 ring-emerald-500/20 scale-110' : ''} ${
+                } ${isCurrent ? 'ring-4 ring-primary/30 scale-110' : ''} ${
                   canClick ? 'cursor-pointer hover:scale-110' : 'cursor-default'
                 }`}
               >
-                {isCompleted ? <CheckCircle className="h-5 w-5" /> : statusIcons[step]}
+                {isActive ? <CheckCircle className="h-5 w-5" /> : statusIcons[step]}
               </button>
               <span className={`text-[10px] mt-2 text-center leading-tight max-w-[80px] ${
-                isActive
-                  ? (isEmConfeccao ? 'text-blue-600 font-semibold' : 'text-emerald-600 font-semibold')
-                  : 'text-muted-foreground'
+                isEntregue ? 'text-emerald-600 font-semibold' : isActive ? 'text-primary font-semibold' : 'text-muted-foreground'
               }`}>
                 {statusLabels[step]}
               </span>
-              {timestamp && isActive && (
-                <span className="text-[9px] text-muted-foreground mt-0.5">
-                  {formatTime(timestamp)}
-                </span>
-              )}
             </div>
           );
         })}
@@ -139,14 +108,13 @@ const AdminPedidos = () => {
   const [total, setTotal] = useState(0);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
-  const [deletingPdf, setDeletingPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadPedidos = useCallback(async () => {
     setLoading(true);
     try {
       const params: any = { limit: 50 };
-      if (statusFilter !== 'all') params.status = statusFilter;
+      if (statusFilter !== 'all') params.status = Number(statusFilter);
       if (search) params.search = search;
 
       const res = await pdfRgService.listar(params);
@@ -182,7 +150,7 @@ const AdminPedidos = () => {
     }
   };
 
-  const sendNotification = async (userId: number | null, pedidoId: number, newStatus: PdfRgStatus) => {
+  const sendNotification = async (userId: number | null, pedidoId: number, newStatus: number) => {
     if (!userId) return;
     try {
       const token = cookieUtils.get('session_token') || cookieUtils.get('api_session_token');
@@ -196,8 +164,8 @@ const AdminPedidos = () => {
           user_id: userId,
           type: 'pedido_status',
           title: `Pedido #${pedidoId} - ${statusLabels[newStatus]}`,
-          message: `Seu pedido #${pedidoId} teve o status atualizado para: ${statusLabels[newStatus]}.${newStatus === 'entregue' ? ' O arquivo PDF está disponível para download.' : ''}`,
-          priority: newStatus === 'entregue' ? 'high' : 'medium',
+          message: `Seu pedido #${pedidoId} teve o status atualizado para: ${statusLabels[newStatus]}.${newStatus === 3 ? ' O arquivo PDF está disponível para download.' : ''}`,
+          priority: newStatus === 3 ? 'high' : 'medium',
         }),
       });
     } catch (e) {
@@ -213,11 +181,11 @@ const AdminPedidos = () => {
       reader.readAsDataURL(file);
     });
 
-  const handleUpdateStatus = async (newStatus: PdfRgStatus) => {
+  const handleUpdateStatus = async (newStatus: number) => {
     if (!selectedPedido) return;
 
-    // Entregue requires PDF upload
-    if (newStatus === 'entregue' && !pdfFile && !selectedPedido.pdf_entrega_base64) {
+    // Status 3 (Entregue) requires PDF upload
+    if (newStatus === 3 && !pdfFile && !selectedPedido.pdf_entrega_base64) {
       toast.error('É obrigatório enviar o arquivo PDF para marcar como Entregue.');
       return;
     }
@@ -240,11 +208,7 @@ const AdminPedidos = () => {
         toast.success(`Status atualizado para: ${statusLabels[newStatus]}`);
         await sendNotification(selectedPedido.user_id, selectedPedido.id, newStatus);
         loadPedidos();
-        // Re-fetch full detail to get updated timestamps
-        const detail = await pdfRgService.obter(selectedPedido.id);
-        if (detail.success && detail.data) {
-          setSelectedPedido(detail.data);
-        }
+        setSelectedPedido(prev => prev ? { ...prev, status: newStatus, ...(extraData.pdf_entrega_nome ? { pdf_entrega_nome: extraData.pdf_entrega_nome } : {}) } : null);
         setPdfFile(null);
       } else {
         toast.error(res.error || 'Erro ao atualizar status');
@@ -253,26 +217,6 @@ const AdminPedidos = () => {
       toast.error('Erro ao atualizar status');
     } finally {
       setUpdatingStatus(false);
-    }
-  };
-
-  const handleDeletePdf = async () => {
-    if (!selectedPedido) return;
-    if (!confirm('Tem certeza que deseja apagar o PDF enviado?')) return;
-    setDeletingPdf(true);
-    try {
-      const res = await pdfRgService.deletarPdf(selectedPedido.id);
-      if (res.success) {
-        toast.success('PDF apagado com sucesso');
-        setSelectedPedido(prev => prev ? { ...prev, pdf_entrega_base64: null, pdf_entrega_nome: null } : null);
-        loadPedidos();
-      } else {
-        toast.error(res.error || 'Erro ao apagar PDF');
-      }
-    } catch {
-      toast.error('Erro ao apagar PDF');
-    } finally {
-      setDeletingPdf(false);
     }
   };
 
@@ -325,15 +269,14 @@ const AdminPedidos = () => {
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[200px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="realizado">Pedido Realizado</SelectItem>
-            <SelectItem value="pagamento_confirmado">Pagamento Confirmado</SelectItem>
-            <SelectItem value="em_confeccao">Em Confecção</SelectItem>
-            <SelectItem value="entregue">Entregue</SelectItem>
+            <SelectItem value="1">Pedido Realizado</SelectItem>
+            <SelectItem value="2">Em Confecção</SelectItem>
+            <SelectItem value="3">Entregue</SelectItem>
           </SelectContent>
         </Select>
         <Button variant="outline" size="icon" onClick={loadPedidos}>
@@ -367,8 +310,8 @@ const AdminPedidos = () => {
                       {p.nome && <span className="text-sm text-muted-foreground">— {p.nome}</span>}
                     </div>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className={statusColors[p.status] || ''}>
-                        {statusLabels[p.status] || p.status}
+                      <Badge variant="outline" className={statusColors[p.status] || statusColors[1]}>
+                        {statusLabels[p.status] || 'Desconhecido'}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         {new Date(p.created_at).toLocaleDateString('pt-BR')}
@@ -403,7 +346,7 @@ const AdminPedidos = () => {
           ) : selectedPedido && (
             <div className="space-y-5">
               {/* Status Progress - display */}
-              <StatusProgressCircles pedido={selectedPedido} />
+              <StatusProgressCircles currentStatus={selectedPedido.status} />
 
               {/* Info */}
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -416,8 +359,8 @@ const AdminPedidos = () => {
                 <div><span className="text-muted-foreground">Preço:</span> R$ {Number(selectedPedido.preco_pago || 0).toFixed(2)}</div>
                 <div>
                   <span className="text-muted-foreground">Status:</span>{' '}
-                  <Badge variant="outline" className={statusColors[selectedPedido.status] || ''}>
-                    {statusLabels[selectedPedido.status] || selectedPedido.status}
+                  <Badge variant="outline" className={statusColors[selectedPedido.status] || statusColors[1]}>
+                    {statusLabels[selectedPedido.status] || 'Desconhecido'}
                   </Badge>
                 </div>
               </div>
@@ -448,29 +391,8 @@ const AdminPedidos = () => {
                 <Label className="text-sm font-medium flex items-center gap-2">
                   <Upload className="h-4 w-4" />
                   Enviar PDF de Entrega
-                  {selectedPedido.status !== 'entregue' && <span className="text-xs text-destructive">(obrigatório para Entregue)</span>}
+                  {selectedPedido.status < 3 && <span className="text-xs text-destructive">(obrigatório para Entregue)</span>}
                 </Label>
-
-                {/* Existing PDF with delete option */}
-                {selectedPedido.pdf_entrega_nome && !pdfFile && (
-                  <div className="flex items-center justify-between bg-background rounded-md p-2 border">
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <CheckCircle className="h-3 w-3 text-emerald-500" />
-                      PDF enviado: <strong>{selectedPedido.pdf_entrega_nome}</strong>
-                    </p>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive hover:text-destructive"
-                      onClick={handleDeletePdf}
-                      disabled={deletingPdf}
-                      title="Apagar PDF"
-                    >
-                      {deletingPdf ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
-                    </Button>
-                  </div>
-                )}
-
                 <Input
                   ref={fileInputRef}
                   type="file"
@@ -483,6 +405,11 @@ const AdminPedidos = () => {
                     <CheckCircle className="h-3 w-3" /> {pdfFile.name}
                   </p>
                 )}
+                {selectedPedido.pdf_entrega_nome && !pdfFile && (
+                  <p className="text-xs text-muted-foreground">
+                    PDF já enviado: <strong>{selectedPedido.pdf_entrega_nome}</strong>
+                  </p>
+                )}
               </div>
 
               {/* Status Update - Circle model */}
@@ -490,7 +417,7 @@ const AdminPedidos = () => {
                 <p className="text-sm font-medium">Atualizar Status:</p>
                 <p className="text-xs text-muted-foreground">Clique em uma etapa para atualizar o status do pedido.</p>
                 <StatusProgressCircles
-                  pedido={selectedPedido}
+                  currentStatus={selectedPedido.status}
                   onClickStep={handleUpdateStatus}
                   disabled={updatingStatus}
                 />
